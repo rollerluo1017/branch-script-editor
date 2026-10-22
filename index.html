@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>分支剧本编辑器</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --line:#e1e4e8; --text:#1f2328; --muted:#6a737d; --accent:#4f6bed;
+  --canvas:#eceef2; --grid:#d3d8df; --card:#fff; --shadow:0 1px 3px rgba(0,0,0,.12),0 4px 14px rgba(0,0,0,.06);
+  --main:#4f6bed; --side:#2da44e; --ending:#cf4a3a; --start:#d4a017; --danger:#cf222e; --warn:#b07d00;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#16181d; --panel:#1e2128; --line:#30353e; --text:#e6e8eb; --muted:#949ba5; --accent:#7b93ff;
+  --canvas:#121418; --grid:#262a31; --card:#252931; --shadow:0 1px 3px rgba(0,0,0,.5),0 4px 14px rgba(0,0,0,.3);
+  --main:#7b93ff; --side:#4cc46d; --ending:#ff7b6b; --start:#f0c040; --danger:#ff6b6b; --warn:#e0b040;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
+#app{display:grid;grid-template-rows:48px 1fr;height:100vh}
+header{display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--line);position:relative;z-index:20}
+.grow{flex:1}
+.sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+button{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.danger{color:var(--danger)}
+button.ico{padding:2px 7px;flex:none}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:100%;min-width:0}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+input[type=checkbox]{width:auto}
+input[type=color]{width:34px;height:30px;padding:2px;flex:none}
+textarea{resize:vertical;line-height:1.6}
+.code{font-family:ui-monospace,Menlo,Consolas,"Microsoft YaHei",monospace;font-size:13px}
+.bad{border-color:var(--danger)!important}
+.emsg{color:var(--danger);font-size:12px;margin:-2px 0 4px 40px}
+.emsg:empty{display:none}
+.ptitle{width:200px;font-weight:600;background:transparent;border-color:transparent}
+.ptitle:hover{border-color:var(--line)}
+header select{width:auto}
+.small{font-size:12px;color:var(--muted)}
+.menu{position:relative}
+.menu summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:6px;padding:4px 10px}
+.menu summary::-webkit-details-marker{display:none}
+.mbody{position:absolute;right:0;top:34px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:200px}
+.mbody button{text-align:left;border-color:transparent}
+.mbody hr{border:none;border-top:1px solid var(--line);margin:2px 0}
+
+#main{display:grid;grid-template-columns:250px 1fr 380px;min-height:0}
+aside{background:var(--panel);overflow:auto;min-height:0}
+#left{border-right:1px solid var(--line);display:flex;flex-direction:column}
+#right{border-left:1px solid var(--line);padding:14px 14px 40px}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tabs button{border:none;border-radius:0;flex:1;padding:9px 0;border-bottom:2px solid transparent;background:none;font-size:13px}
+.tabs button.on{border-bottom-color:var(--accent);color:var(--accent)}
+#searchBox{padding:8px 10px 0;flex:none}
+#leftPane{padding:8px 10px 30px;overflow:auto;flex:1}
+.item{padding:4px 8px;border-radius:6px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.item:hover{background:var(--bg)}
+.item.on{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.item .nt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.t-main{--c:var(--main)} .t-side{--c:var(--side)} .t-ending{--c:var(--ending)}
+.grp{font-size:12px;color:var(--muted);margin:10px 0 3px;font-weight:600}
+.row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lbl{font-size:12px;color:var(--muted);width:30px;flex:none}
+.num{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
+h3{margin:0 0 10px;font-size:16px} h4{margin:16px 0 6px;font-size:13px}
+label.f{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px}
+label.check{display:flex;gap:6px;align-items:center;margin-top:10px;font-size:13px;cursor:pointer}
+.ehead{display:flex;align-items:center;gap:8px}
+.sec{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}
+.choice{border:1px solid var(--line);border-radius:8px;padding:8px 8px 2px;margin-bottom:8px}
+.choice:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.link{color:var(--accent);cursor:pointer}
+.link:hover{text-decoration:underline}
+.iss{padding:5px 8px;border-radius:6px;margin-bottom:4px;font-size:13px;cursor:pointer;border-left:3px solid var(--warn);background:var(--bg)}
+.iss.err{border-left-color:var(--danger)}
+.iss:hover{filter:brightness(.97)}
+.ok{color:var(--side)} .no{color:var(--danger)}
+.tips{font-size:13px;color:var(--muted);padding-left:18px;margin:6px 0}
+.tips li{margin-bottom:5px}
+.stat{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+.stat div{background:var(--bg);border-radius:8px;padding:8px;text-align:center}
+.stat b{display:block;font-size:18px}
+.path{font-size:12px;color:var(--muted);margin:2px 0 8px 14px;line-height:1.7}
+.path em{color:var(--text);font-style:normal}
+
+#canvas{position:relative;overflow:hidden;background-color:var(--canvas);background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);cursor:grab;touch-action:none}
+#canvas.panning{cursor:grabbing}
+#world{position:absolute;left:0;top:0;transform-origin:0 0}
+#edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+path.e{fill:none;stroke:var(--muted);stroke-width:2;opacity:.65}
+path.e.cond{stroke-dasharray:7 5}
+path.e.hl{stroke:var(--accent);opacity:1;stroke-width:2.6}
+path.e.dim{opacity:.12}
+#tempEdge{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:4 4}
+.node{position:absolute;width:220px;background:var(--card);border-radius:9px;box-shadow:var(--shadow);border:2px solid transparent;user-select:none;cursor:pointer}
+.node.sel{border-color:var(--accent)}
+.node.dim{opacity:.22}
+.nh{display:flex;align-items:center;gap:6px;padding:6px 8px 4px;border-radius:7px 7px 0 0;border-top:4px solid var(--c);font-weight:600}
+.badge{font-size:11px;font-weight:500;padding:0 5px;border-radius:4px;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c);white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+.nh .nt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.star{color:var(--start)}
+.nchap{padding:0 8px;font-size:11px;color:var(--muted)}
+.nb{padding:2px 8px 6px;color:var(--muted);font-size:12px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.nc{border-top:1px solid var(--line)}
+.ch{position:relative;padding:3px 18px 3px 8px;font-size:12px;border-bottom:1px dashed var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch:last-child{border-bottom:none}
+.ch i{font-style:normal;font-size:10px;color:var(--warn);border:1px solid var(--warn);border-radius:3px;padding:0 2px;margin-right:4px}
+.ch.add{color:var(--muted);font-size:11px}
+.port{position:absolute;right:2px;top:50%;margin-top:-7px;width:14px;height:14px;border-radius:50%;background:var(--c);border:2px solid var(--card);box-shadow:0 0 0 1px var(--c);cursor:crosshair}
+.port.none{background:var(--card);box-shadow:0 0 0 1.5px var(--warn)}
+.port.add{background:var(--card);box-shadow:0 0 0 1px var(--muted)}
+.port:hover{transform:scale(1.3)}
+#hint{position:absolute;left:10px;bottom:8px;font-size:12px;color:var(--muted);pointer-events:none}
+#zoomInfo{position:absolute;right:10px;bottom:8px;font-size:12px;color:var(--muted)}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50}
+.hidden{display:none!important}
+.playwin{width:min(1040px,95vw);height:min(740px,92vh);background:var(--panel);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.ptop{display:flex;gap:6px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.pbody{flex:1;display:grid;grid-template-columns:1fr 270px;min-height:0}
+.pstory{padding:26px 40px;overflow:auto;font-size:16px;line-height:1.85}
+.pside{border-left:1px solid var(--line);padding:12px;overflow:auto;font-size:13px}
+.pside table{width:100%;border-collapse:collapse}
+.pside td{padding:3px 2px;vertical-align:middle}
+.pside td:first-child{color:var(--muted);width:45%}
+.pside input{padding:2px 6px}
+.pnode{font-size:12px;color:var(--muted);margin-bottom:12px}
+.picked{color:var(--muted);font-size:14px;margin-bottom:12px;padding-left:10px;border-left:3px solid var(--line)}
+.say{margin:6px 0}
+.say b{margin-right:10px}
+.narr{margin:6px 0}
+.gap{height:10px}
+.pchoices{margin-top:24px;display:flex;flex-direction:column;gap:8px}
+.pchoices button{text-align:left;padding:10px 14px;font-size:15px;border-radius:8px}
+.pchoices button:disabled{opacity:.45;cursor:not-allowed}
+.pchoices .why{font-size:12px;color:var(--muted);margin-left:8px}
+.endbanner{margin-top:26px;padding:16px;border-radius:10px;background:color-mix(in srgb,var(--ending) 14%,transparent);color:var(--ending);font-weight:600;text-align:center;font-size:17px}
+.perr{color:var(--danger);font-size:13px;margin-top:8px}
+.pdead{margin-top:24px;color:var(--warn);font-size:14px}
+.pside ol{padding-left:20px;margin:4px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <details class="menu" id="projMenu"><summary title="切换 / 新建项目">📁 项目 ▾</summary>
+      <div class="mbody" id="projBody" style="left:0;right:auto;min-width:260px"></div>
+    </details>
+    <input id="projTitle" class="ptitle" title="剧本名称（点击可改名）">
+    <span class="sep"></span>
+    <button id="bAdd" title="在画面中央新建节点（也可双击画布空白处）">＋ 新节点</button>
+    <button id="bLayout" title="按分支顺序自动排列所有节点">自动排列</button>
+    <button id="bFit">适应画面</button>
+    <button id="bUndo" title="Ctrl+Z">撤销</button>
+    <button id="bRedo" title="Ctrl+Shift+Z / Ctrl+Y">重做</button>
+    <span class="sep"></span>
+    <select id="fType" title="只高亮某类节点">
+      <option value="all">全部类型</option><option value="main">只看主线</option><option value="side">只看支线</option><option value="ending">只看结局</option>
+    </select>
+    <select id="fChap" title="只高亮某章节"></select>
+    <span class="grow"></span>
+    <span id="saveState" class="small"></span>
+    <details class="menu" id="fileMenu"><summary>文件 ▾</summary>
+      <div class="mbody">
+        <button data-m="exportJson">导出 JSON（备份 / 换电脑）</button>
+        <button data-m="importJson">导入 JSON（作为新项目打开）</button>
+        <button data-m="exportMd">导出剧本文本（Markdown）</button>
+      </div>
+    </details>
+    <button id="bPlay" class="primary">▶ 试玩</button>
+  </header>
+  <div id="main">
+    <aside id="left">
+      <div class="tabs" id="leftTabs">
+        <button data-tab="toc">目录</button><button data-tab="vars">变量</button><button data-tab="chars">角色</button><button data-tab="chaps">章节</button><button data-tab="check">检查</button>
+      </div>
+      <div id="searchBox"><input id="search" placeholder="搜索标题、正文、选项…"></div>
+      <div id="leftPane"></div>
+    </aside>
+    <div id="canvas">
+      <div id="world">
+        <svg id="edges">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>
+            <marker id="arh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/></marker>
+          </defs>
+          <g id="edgeG"></g>
+          <path id="tempEdge" d=""/>
+        </svg>
+        <div id="nodes"></div>
+      </div>
+      <div id="hint">双击空白处新建节点 · 拖动选项右侧圆点连线（拖到空白处自动新建）· 滚轮缩放 · 拖动空白处平移</div>
+      <div id="zoomInfo"></div>
+    </div>
+    <aside id="right"></aside>
+  </div>
+</div>
+
+<div id="play" class="overlay hidden">
+  <div class="playwin">
+    <div class="ptop">
+      <b>试玩</b>
+      <button id="pRestart">↺ 重新开始</button>
+      <button id="pBack">← 后退一步</button>
+      <button id="pLocate">在编辑器中打开当前节点</button>
+      <label class="check" style="margin:0 0 0 8px"><input type="checkbox" id="pLocked"> 显示不满足条件的选项</label>
+      <span class="grow"></span>
+      <span class="small">数字键选择 · Backspace 后退 · Esc 关闭</span>
+      <button id="pClose">✕ 关闭</button>
+    </div>
+    <div class="pbody">
+      <div class="pstory" id="pStory"></div>
+      <div class="pside">
+        <h4 style="margin-top:0">变量 <span class="small">（可直接改，用来测试）</span></h4>
+        <table id="pVars"></table>
+        <h4>走过的路线</h4>
+        <ol id="pPath"></ol>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=p=>p+Date.now().toString(36).slice(-4)+Math.random().toString(36).slice(2,7);
+const TYPE_NAME={main:'主线',side:'支线',ending:'结局'};
+const KEY='branch-script-editor.v1';
+const VAR_RE=/^[\p{L}_][\p{L}\p{N}_]*$/u;
+const RESERVED=new Set(['true','false','and','or','not']);
+
+let P=null, sel=null, view={x:60,y:60,z:1}, layout={};
+const ui={tab:'toc',type:'all',chapter:'all',search:'',sim:null};
+const N=id=>id?P.nodes.find(n=>n.id===id):undefined;
+
+/* ================= 数据 ================= */
+function normalize(d){
+  d=d||{};
+  const p={title:String(d.title||'未命名剧本'),start:String(d.start||''),variables:[],characters:[],chapters:[],nodes:[]};
+  for(const v of d.variables||[]){
+    const type=['number','bool','text'].includes(v.type)?v.type:'number';
+    p.variables.push({id:v.id||uid('v'),name:String(v.name||''),type,init:coerce(type,v.init)});
+  }
+  for(const c of d.characters||[]) p.characters.push({id:c.id||uid('r'),name:String(c.name||''),color:/^#[0-9a-f]{3,8}$/i.test(c.color)?c.color:'#888888'});
+  for(const c of d.chapters||[]) p.chapters.push({id:c.id||uid('h'),name:String(c.name||'')});
+  const chapIds=new Set(p.chapters.map(c=>c.id));
+  for(const n of d.nodes||[]){
+    p.nodes.push({
+      id:String(n.id||uid('n')),title:String(n.title||''),type:TYPE_NAME[n.type]?n.type:'main',
+      chapter:chapIds.has(n.chapter)?n.chapter:'',x:+n.x||0,y:+n.y||0,
+      text:String(n.text||''),onEnter:String(n.onEnter||''),ending:String(n.ending||''),notes:String(n.notes||''),
+      choices:(n.choices||[]).map(c=>({id:c.id||uid('c'),text:String(c.text||''),target:String(c.target||''),cond:String(c.cond||''),effect:String(c.effect||'')}))
+    });
+  }
+  if(!p.nodes.some(n=>n.id===p.start)) p.start=p.nodes[0]?.id||'';
+  return p;
+}
+function coerce(type,v){
+  if(type==='number')return Number(v)||0;
+  if(type==='bool')return v===true||v==='true'||v==='是'||v===1||v==='1';
+  return String(v??'');
+}
+function initVars(){const o={};for(const v of P.variables)if(v.name)o[v.name]=coerce(v.type,v.init);return o}
+function newChoice(target){return{id:uid('c'),text:'',target:target||'',cond:'',effect:''}}
+function makeNode(x,y,opts){
+  const n=Object.assign({id:uid('n'),title:'',type:'main',chapter:'',x:Math.round(x),y:Math.round(y),text:'',onEnter:'',ending:'',notes:'',choices:[]},opts||{});
+  P.nodes.push(n); if(!N(P.start))P.start=n.id; return n;
+}
+const chapterName=id=>P.chapters.find(c=>c.id===id)?.name||'';
+const incoming=id=>{const r=[];P.nodes.forEach(n=>n.choices.forEach((c,i)=>{if(c.target===id)r.push({n,c,i})}));return r};
+
+function demo(){
+  return {
+    title:'示例：雨夜来客', start:'s1',
+    variables:[{name:'好感',type:'number',init:0},{name:'有钥匙',type:'bool',init:false}],
+    characters:[{name:'林夏',color:'#e0607e'},{name:'我',color:'#4a90d9'}],
+    chapters:[{id:'c1',name:'第一章 雨夜'},{id:'c2',name:'第二章 照片'}],
+    nodes:[
+      {id:'s1',title:'开场',type:'main',chapter:'c1',text:'窗外的雨下了整整一夜。\n凌晨两点，门铃突然响了。\n\n林夏：抱歉这么晚打扰……能让我进来躲躲雨吗？',
+        choices:[{text:'让她进来',target:'s2',effect:'好感 += 1'},{text:'隔着门问她是谁',target:'s3'}]},
+      {id:'s2',title:'客厅',type:'main',chapter:'c1',text:'她浑身湿透，站在玄关有些局促。\n林夏：谢谢你……其实，我是来找一样东西的。\n她从口袋里掏出一张泛黄的旧照片。',
+        choices:[{text:'问她照片的事',target:'s4',effect:'好感 += 1'},{text:'先给她倒杯热茶',target:'s4',effect:'好感 += 2'}]},
+      {id:'s3',title:'门外的对话',type:'side',chapter:'c1',text:'我：你是谁？\n林夏：……我是这间屋子以前的住户。\n她的声音有些发抖。片刻后，一把生锈的钥匙从门缝下塞了进来。',onEnter:'有钥匙 = true',
+        choices:[{text:'开门',target:'s2'},{text:'不理她',target:'e3'}]},
+      {id:'s4',title:'照片',type:'main',chapter:'c2',text:'照片上正是这间屋子，只是十年前的样子。\n林夏：我在找地下室的门。\n（当前好感：{好感}）',
+        choices:[{text:'用那把旧钥匙打开储物间的暗门',target:'e1',cond:'有钥匙'},{text:'陪她一起找',target:'e1',cond:'好感 >= 3'},{text:'告诉她这里没有地下室',target:'e2'}]},
+      {id:'e1',title:'重逢',type:'ending',ending:'好结局',chapter:'c2',text:'暗门后是一段狭窄的楼梯，尽头放着一只铁盒。\n盒子里，是她失踪多年的父亲留下的信。\n林夏：谢谢你……陪我走到这里。'},
+      {id:'e2',title:'雨停了',type:'ending',ending:'普通结局',chapter:'c2',text:'林夏失望地道了谢，消失在夜色里。\n第二天，雨停了。'},
+      {id:'e3',title:'沉默',type:'ending',ending:'坏结局',chapter:'c1',text:'敲门声渐渐消失。\n你再也没有见过她。'}
+    ]
+  };
+}
+
+/* ================= 条件 / 效果 表达式 ================= */
+const FW={'＞':'>','＜':'<','＝':'=','！':'!','（':'(','）':')','＋':'+','－':'-','；':';','，':';',',':';','＆':'&','｜':'|','“':'"','”':'"','‘':"'",'’':"'"};
+function tokenize(src){
+  const s=String(src??'').replace(/[＞＜＝！（）＋－；，,＆｜“”‘’]/g,c=>FW[c]);
+  const out=[];let i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(/\s/.test(c)){i++;continue}
+    const r=s.slice(i);let m;
+    if((m=r.match(/^\d+(\.\d+)?/))){out.push({t:'lit',v:parseFloat(m[0])});i+=m[0].length;continue}
+    if(c==='"'||c==="'"){const j=s.indexOf(c,i+1);if(j<0)throw new Error('文字缺少结束引号');out.push({t:'lit',v:s.slice(i+1,j)});i=j+1;continue}
+    if((m=r.match(/^(>=|<=|==|!=|&&|\|\||\+=|-=|[-+*\/%<>=!();])/))){out.push({t:'op',v:m[0]});i+=m[0].length;continue}
+    if((m=r.match(/^[\p{L}_][\p{L}\p{N}_]*/u))){
+      const w=m[0];
+      if(w==='true'||w==='false')out.push({t:'lit',v:w==='true'});
+      else if(w==='and')out.push({t:'op',v:'&&'});
+      else if(w==='or')out.push({t:'op',v:'||'});
+      else if(w==='not')out.push({t:'op',v:'!'});
+      else out.push({t:'id',v:w});
+      i+=w.length;continue;
+    }
+    throw new Error('无法识别的字符“'+c+'”');
+  }
+  return out;
+}
+function parseExpression(toks,start,end){
+  let p=start;
+  const isOp=(...vs)=>p<end&&toks[p].t==='op'&&vs.includes(toks[p].v);
+  const bin=(sub,ops,map)=>()=>{let l=sub();while(isOp(...ops)){let op=toks[p++].v;if(map&&map[op])op=map[op];l={k:'b',op,l,r:sub()}}return l};
+  let or;
+  const prim=()=>{
+    if(p>=end)throw new Error('写到一半，后面缺内容');
+    const k=toks[p++];
+    if(k.t==='lit')return{k:'l',v:k.v};
+    if(k.t==='id')return{k:'v',n:k.v};
+    if(k.v==='('){const e=or();if(!isOp(')'))throw new Error('缺少右括号');p++;return e}
+    throw new Error('这里不该出现“'+k.v+'”');
+  };
+  const un=()=>{if(isOp('!')){p++;return{k:'u',op:'!',e:un()}}if(isOp('-')){p++;return{k:'u',op:'-',e:un()}}return prim()};
+  const mul=bin(un,['*','/','%']),add=bin(mul,['+','-']),cmp=bin(add,['>','<','>=','<=']),eq=bin(cmp,['==','!=','='],{'=':'=='}),and=bin(eq,['&&']);
+  or=bin(and,['||']);
+  const e=or();
+  if(p!==end)throw new Error('多出了“'+toks[p].v+'”（多个条件请用 && 或 || 连接）');
+  return e;
+}
+function ev(e,vars){
+  switch(e.k){
+    case 'l':return e.v;
+    case 'v':if(!Object.hasOwn(vars,e.n))throw new Error('未定义的变量“'+e.n+'”');return vars[e.n];
+    case 'u':{const v=ev(e.e,vars);return e.op==='!'?!v:-v}
+    case 'b':{
+      if(e.op==='&&')return ev(e.l,vars)&&ev(e.r,vars);
+      if(e.op==='||')return ev(e.l,vars)||ev(e.r,vars);
+      const a=ev(e.l,vars),b=ev(e.r,vars);
+      switch(e.op){case '+':return a+b;case '-':return a-b;case '*':return a*b;case '/':return a/b;case '%':return a%b;
+        case '>':return a>b;case '<':return a<b;case '>=':return a>=b;case '<=':return a<=b;case '==':return a==b;case '!=':return a!=b}
+    }
+  }
+}
+const ccache=new Map();
+const idsOf=t=>t.filter(x=>x.t==='id').map(x=>x.v);
+function compileCond(src){
+  const k='c\0'+src;if(ccache.has(k))return ccache.get(k);
+  let r;try{const t=tokenize(src);r={ast:t.length?parseExpression(t,0,t.length):null,ids:idsOf(t)}}catch(e){r={err:e.message,ids:[]}}
+  ccache.set(k,r);return r;
+}
+function compileEffect(src){
+  const k='e\0'+src;if(ccache.has(k))return ccache.get(k);
+  let r;
+  try{
+    const t=tokenize(src),stmts=[];let s=0;
+    for(let i=0;i<=t.length;i++){
+      if(i<t.length&&!(t[i].t==='op'&&t[i].v===';'))continue;
+      if(i>s){
+        const a=t[s],op=t[s+1];
+        if(a.t!=='id')throw new Error('效果要以变量名开头，例如：好感 += 1');
+        if(!op||op.t!=='op'||!['=','+=','-='].includes(op.v))throw new Error('“'+a.v+'”后面应该是 =、+= 或 -=');
+        if(i-s<3)throw new Error('“'+a.v+' '+op.v+'”后面缺少数值');
+        stmts.push({n:a.v,op:op.v,e:parseExpression(t,s+2,i)});
+      }
+      s=i+1;
+    }
+    r={stmts,ids:idsOf(t)};
+  }catch(e){r={err:e.message,ids:[]}}
+  ccache.set(k,r);return r;
+}
+function evalCond(src,vars){const c=compileCond(src);if(c.err)throw new Error(c.err);return c.ast?!!ev(c.ast,vars):true}
+function applyEffect(src,vars){
+  const c=compileEffect(src);if(c.err)throw new Error(c.err);
+  for(const s of c.stmts){
+    if(!Object.hasOwn(vars,s.n))throw new Error('未定义的变量“'+s.n+'”');
+    const v=ev(s.e,vars);
+    vars[s.n]=s.op==='='?v:s.op==='+='?vars[s.n]+v:vars[s.n]-v;
+  }
+}
+function interp(text,vars){
+  return text.replace(/\{([^{}\n]+)\}/g,(m,x)=>{
+    try{const t=tokenize(x);const v=ev(parseExpression(t,0,t.length),vars);return typeof v==='boolean'?(v?'是':'否'):String(v)}
+    catch(e){return '〔'+x+'？〕'}
+  });
+}
+function codeProblem(src,kind){
+  if(!src||!src.trim())return '';
+  const c=kind==='cond'?compileCond(src):compileEffect(src);
+  if(c.err)return c.err;
+  const names=new Set(P.variables.map(v=>v.name));
+  const bad=[...new Set(c.ids.filter(x=>!names.has(x)))];
+  return bad.length?'未定义的变量：'+bad.join('、')+'（在左侧“变量”里添加）':'';
+}
+
+/* ================= 保存 / 撤销 ================= */
+/* 多项目：索引 + 每个项目单独一份 */
+const IDX=KEY+'.index',CUR=KEY+'.cur',PK=id=>KEY+'.p.'+id,VK=id=>KEY+'.view.'+id;
+const mem={};
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return mem[k]??null}};
+const lsSet=(k,v)=>{mem[k]=v;localStorage.setItem(k,v)};
+const lsDel=k=>{delete mem[k];try{localStorage.removeItem(k)}catch(e){}};
+let projects=[],curId=null;
+function writeIndex(){try{lsSet(IDX,JSON.stringify(projects))}catch(e){}}
+let saveT=null;
+function save(now){
+  clearTimeout(saveT);
+  const go=()=>{
+    if(!curId)return;
+    const meta=projects.find(p=>p.id===curId);
+    if(meta){meta.title=P.title;meta.updated=Date.now()}
+    try{
+      lsSet(PK(curId),JSON.stringify(P));
+      lsSet(VK(curId),JSON.stringify(view));
+      lsSet(IDX,JSON.stringify(projects));
+      const d=new Date();$('#saveState').textContent='已自动保存 '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    }catch(e){$('#saveState').textContent='⚠ 自动保存失败，请导出 JSON 备份'}
+  };
+  now?go():saveT=setTimeout(go,300);
+}
+function load(){
+  try{projects=JSON.parse(lsGet(IDX))||[]}catch(e){projects=[]}
+  if(!projects.length){
+    const old=lsGet(KEY);
+    if(old){
+      try{
+        const id=uid('p'),p=normalize(JSON.parse(old));
+        lsSet(PK(id),JSON.stringify(p));projects.push({id,title:p.title,updated:Date.now()});
+        const v=lsGet(KEY+'.view');if(v)lsSet(VK(id),v);
+      }catch(e){}
+    }
+    const mine={id:uid('p'),title:'我的剧本'},ex={id:uid('p'),title:demo().title};
+    try{
+      lsSet(PK(mine.id),JSON.stringify(normalize({title:mine.title,nodes:[{id:'n1',title:'开场'}]})));
+      lsSet(PK(ex.id),JSON.stringify(normalize(demo())));
+    }catch(e){}
+    const now=Date.now();
+    if(!projects.length)projects.push({...mine,updated:now});
+    projects.push({...ex,updated:now-1});
+    writeIndex();
+    try{lsSet(CUR,projects[0].id)}catch(e){}
+  }
+  let id=lsGet(CUR);
+  if(!projects.some(p=>p.id===id))id=projects[0].id;
+  openProject(id);
+}
+function openProject(id){
+  if(P&&curId){if(commitT)commit();save(true)}
+  let d=null;try{d=JSON.parse(lsGet(PK(id)))}catch(e){}
+  P=normalize(d||{title:projects.find(p=>p.id===id)?.title});
+  curId=id;try{lsSet(CUR,id)}catch(e){}
+  sel=null;ui.sim=null;ui.type='all';ui.chapter='all';ui.search='';$('#search').value='';
+  closePlay();resetHistory();renderAll();
+  const needLayout=P.nodes.length>1&&P.nodes.every(n=>!n.x&&!n.y);
+  if(needLayout){autoLayout();renderGraph();resetHistory()}
+  let v=null;try{v=JSON.parse(lsGet(VK(id)))}catch(e){}
+  if(!needLayout&&v&&isFinite(v.z)){view=v;applyView()}else fit();
+  save(true);renderProjects();
+}
+function createProject(d,rename,imported){
+  if(P&&curId){if(commitT)commit();save(true)}
+  const id=uid('p'),p=normalize(d);
+  try{lsSet(PK(id),JSON.stringify(p))}catch(e){}
+  projects.push({id,title:p.title,updated:Date.now(),...(imported?{imported:true}:{})});writeIndex();
+  openProject(id);
+  if(rename){const t=$('#projTitle');t.focus();t.select()}
+}
+function deleteProject(){
+  if(!confirm(`删除项目“${P.title}”？\n这个操作不能撤销。建议先用“文件 → 导出 JSON”备份。`))return;
+  const id=curId;curId=null;
+  lsDel(PK(id));lsDel(VK(id));
+  projects=projects.filter(p=>p.id!==id);writeIndex();
+  if(projects.length)openProject([...projects].sort((a,b)=>b.updated-a.updated)[0].id);
+  else createProject({title:'我的剧本',nodes:[{id:'n1',title:'开场'}]});
+}
+function renderProjects(){
+  const list=[...projects].sort((a,b)=>b.updated-a.updated);
+  $('#projBody').innerHTML=`<div class="small" style="padding:2px 10px">我的项目（${list.length}）</div>`+
+    list.map(p=>`<button data-pid="${esc(p.id)}"${p.id===curId?' style="font-weight:600;color:var(--accent)"':''}>${p.id===curId?'✓ ':'　'}${esc(p.title||'未命名剧本')}${p.imported?' <span class="small">（导入）</span>':''}</button>`).join('')+
+    `<hr><button data-pm="new">＋ 新建空白项目</button><button data-pm="copy">复制当前项目</button><button data-pm="demo">添加一份示例剧本</button><hr><button data-pm="del" class="danger">删除当前项目</button>`;
+}
+$('#projBody').addEventListener('click',e=>{
+  const b=e.target.closest('[data-pid],[data-pm]');if(!b)return;
+  $('#projMenu').removeAttribute('open');
+  if(b.dataset.pid){if(b.dataset.pid!==curId)openProject(b.dataset.pid);return}
+  const m=b.dataset.pm;
+  if(m==='new')createProject({title:'新剧本',nodes:[{id:'n1',title:'开场'}]},true);
+  else if(m==='copy'){if(commitT)commit();createProject({...JSON.parse(JSON.stringify(P)),title:P.title+' 副本'})}
+  else if(m==='demo')createProject(demo());
+  else if(m==='del')deleteProject();
+});
+let hist=[],hi=-1,commitT=null;
+function resetHistory(){hist=[JSON.stringify(P)];hi=0}
+function commit(){
+  clearTimeout(commitT);commitT=null;
+  const s=JSON.stringify(P);
+  if(hist[hi]===s)return;
+  hist=hist.slice(0,hi+1);hist.push(s);
+  if(hist.length>200)hist.shift();
+  hi=hist.length-1;ui.sim=null;save();
+}
+function scheduleCommit(){clearTimeout(commitT);commitT=setTimeout(commit,600)}
+function undo(){if(commitT)commit();if(hi>0){hi--;restore()}}
+function redo(){if(commitT)commit();if(hi<hist.length-1){hi++;restore()}}
+function restore(){P=JSON.parse(hist[hi]);if(!N(sel))sel=null;ui.sim=null;renderAll();save()}
+
+/* ================= 画布 ================= */
+const cv=$('#canvas');
+function nodeMatches(n){
+  if(ui.type!=='all'&&n.type!==ui.type)return false;
+  if(ui.chapter!=='all'&&n.chapter!==ui.chapter)return false;
+  return true;
+}
+function renderGraph(){
+  $('#nodes').innerHTML=P.nodes.map(n=>{
+    const snippet=n.text.replace(/\s+/g,' ').slice(0,90);
+    const ch=chapterName(n.chapter);
+    const badge=n.type==='ending'?(n.ending||'结局'):TYPE_NAME[n.type];
+    return `<div class="node t-${n.type}${n.id===sel?' sel':''}${nodeMatches(n)?'':' dim'}" data-id="${esc(n.id)}" style="left:${n.x}px;top:${n.y}px">`+
+      `<div class="nh"><span class="badge">${esc(badge)}</span><span class="nt">${esc(n.title||'（无标题）')}</span>${P.start===n.id?'<span class="star" title="开始节点">★</span>':''}</div>`+
+      (ch?`<div class="nchap">${esc(ch)}</div>`:'')+
+      (snippet?`<div class="nb">${esc(snippet)}</div>`:'')+
+      `<div class="nc">`+n.choices.map((c,i)=>`<div class="ch" title="${esc(c.text)}${c.cond?'\n条件：'+esc(c.cond):''}${c.effect?'\n效果：'+esc(c.effect):''}"><span class="ct">${c.cond?'<i>条件</i>':''}${esc(c.text||'（未填写选项文字）')}</span><span class="port${N(c.target)?'':' none'}" data-ci="${i}"></span></div>`).join('')+
+      `<div class="ch add"><span class="ct">＋ 拖动圆点新增选项</span><span class="port add" data-ci="new"></span></div></div></div>`;
+  }).join('');
+  measure();drawEdges();
+}
+function measure(){
+  layout={};
+  for(const el of $('#nodes').children){
+    layout[el.dataset.id]={w:el.offsetWidth,h:el.offsetHeight,ports:[...el.querySelectorAll('.ch')].map(r=>r.offsetTop+r.offsetHeight/2)};
+  }
+}
+function edgePath(x1,y1,x2,y2){
+  const dx=Math.max(50,Math.abs(x2-x1)*0.5);
+  return `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
+}
+function portPos(n,i){const L=layout[n.id];return{x:n.x+L.w-9,y:n.y+2+(L.ports[i]??20)}}
+function drawEdges(){
+  let s='';
+  for(const n of P.nodes){
+    if(!layout[n.id])continue;
+    n.choices.forEach((c,i)=>{
+      const t=N(c.target);if(!t)return;
+      const hl=n.id===sel||t.id===sel,dim=!(nodeMatches(n)&&nodeMatches(t));
+      const a=portPos(n,i);
+      s+=`<path class="e${c.cond?' cond':''}${hl?' hl':''}${dim&&!hl?' dim':''}" d="${edgePath(a.x+7,a.y,t.x-1,t.y+18)}" marker-end="url(#${hl?'arh':'ar'})"/>`;
+    });
+  }
+  $('#edgeG').innerHTML=s;
+}
+function applyView(){
+  $('#world').style.transform=`translate(${view.x}px,${view.y}px) scale(${view.z})`;
+  cv.style.backgroundSize=`${22*view.z}px ${22*view.z}px`;
+  cv.style.backgroundPosition=`${view.x}px ${view.y}px`;
+  $('#zoomInfo').textContent=Math.round(view.z*100)+'%';
+}
+function toWorld(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left-view.x)/view.z,y:(e.clientY-r.top-view.y)/view.z}}
+function fit(){
+  const r=cv.getBoundingClientRect();
+  if(!P.nodes.length){view={x:60,y:60,z:1};applyView();return}
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  for(const n of P.nodes){const L=layout[n.id]||{w:220,h:100};a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+L.w);d=Math.max(d,n.y+L.h)}
+  const pad=50;
+  const z=Math.min(1.1,Math.max(0.15,Math.min((r.width-pad*2)/(c-a),(r.height-pad*2)/(d-b))));
+  view={z,x:(r.width-(c-a)*z)/2-a*z,y:(r.height-(d-b)*z)/2-b*z};
+  applyView();save();
+}
+function centerOn(id){
+  const n=N(id);if(!n)return;
+  const L=layout[id]||{w:220,h:100},r=cv.getBoundingClientRect();
+  view.x=r.width/2-(n.x+L.w/2)*view.z;view.y=r.height/2-(n.y+L.h/2)*view.z;applyView();
+}
+function viewCenterWorld(){const r=cv.getBoundingClientRect();return{x:(r.width/2-view.x)/view.z,y:(r.height/2-view.y)/view.z}}
+
+let drag=null;
+cv.addEventListener('pointerdown',e=>{
+  if(e.button!==0)return;
+  const port=e.target.closest('.port'),nodeEl=e.target.closest('.node');
+  if(port&&nodeEl){drag={k:'link',from:nodeEl.dataset.id,ci:port.dataset.ci,sx:e.clientX,sy:e.clientY};}
+  else if(nodeEl){const n=N(nodeEl.dataset.id);drag={k:'node',id:n.id,ox:n.x,oy:n.y,sx:e.clientX,sy:e.clientY,moved:false,el:nodeEl};}
+  else{drag={k:'pan',ox:view.x,oy:view.y,sx:e.clientX,sy:e.clientY,moved:false};cv.classList.add('panning');}
+  cv.setPointerCapture(e.pointerId);e.preventDefault();
+});
+cv.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+  if(drag.k==='pan'){
+    if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;
+    view.x=drag.ox+dx;view.y=drag.oy+dy;applyView();
+  }else if(drag.k==='node'){
+    if(!drag.moved&&Math.abs(dx)+Math.abs(dy)<4)return;
+    drag.moved=true;
+    const n=N(drag.id);n.x=Math.round(drag.ox+dx/view.z);n.y=Math.round(drag.oy+dy/view.z);
+    drag.el.style.left=n.x+'px';drag.el.style.top=n.y+'px';drawEdges();
+  }else{
+    const n=N(drag.from),i=drag.ci==='new'?n.choices.length:+drag.ci,a=portPos(n,i),w=toWorld(e);
+    $('#tempEdge').setAttribute('d',edgePath(a.x+7,a.y,w.x,w.y));
+  }
+});
+cv.addEventListener('pointerup',e=>{
+  if(!drag)return;
+  const d=drag;drag=null;cv.classList.remove('panning');
+  if(d.k==='pan'){if(d.moved)save();else if(sel)select(null)}
+  else if(d.k==='node'){if(d.moved)commit();else if(sel!==d.id)select(d.id)}
+  else{$('#tempEdge').setAttribute('d','');finishLink(d,e)}
+});
+cv.addEventListener('pointercancel',()=>{drag=null;cv.classList.remove('panning');$('#tempEdge').setAttribute('d','')});
+function finishLink(d,e){
+  if(Math.abs(e.clientX-d.sx)+Math.abs(e.clientY-d.sy)<6)return;
+  const src=N(d.from),el=document.elementFromPoint(e.clientX,e.clientY),tEl=el&&el.closest('.node');
+  let target,created=false;
+  if(tEl&&cv.contains(tEl))target=tEl.dataset.id;
+  else{
+    const w=toWorld(e);
+    target=makeNode(w.x+4,w.y-18,{type:src.type==='ending'?'main':src.type,chapter:src.chapter}).id;created=true;
+  }
+  if(d.ci==='new')src.choices.push(newChoice(target));
+  else src.choices[+d.ci].target=target;
+  if(created)select(target,true);else renderAll();
+  commit();
+}
+cv.addEventListener('dblclick',e=>{
+  const nodeEl=e.target.closest('.node');
+  if(nodeEl){select(nodeEl.dataset.id,true);return}
+  const w=toWorld(e);
+  const n=makeNode(w.x-110,w.y-20,{chapter:ui.chapter!=='all'?ui.chapter:''});
+  select(n.id,true);commit();
+});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=cv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;
+  const f=Math.exp(-e.deltaY*(e.deltaMode?0.05:0.0015));
+  const z=Math.min(2,Math.max(0.15,view.z*f));
+  view.x=sx-(sx-view.x)*z/view.z;view.y=sy-(sy-view.y)*z/view.z;view.z=z;applyView();save();
+},{passive:false});
+
+function autoLayout(){
+  const col={},pos={},inc=new Set();
+  P.nodes.forEach(n=>n.choices.forEach(c=>c.target&&inc.add(c.target)));
+  const roots=[];
+  if(N(P.start))roots.push(P.start);
+  P.nodes.forEach(n=>{if(!inc.has(n.id))roots.push(n.id)});
+  P.nodes.forEach(n=>roots.push(n.id));
+  let baseY=0;
+  for(const r of roots){
+    if(r in col)continue;
+    const q=[r];col[r]=0;
+    for(let h=0;h<q.length;h++){
+      for(const c of N(q[h]).choices){
+        if(N(c.target)&&!(c.target in col)){col[c.target]=col[q[h]]+1;q.push(c.target)}
+      }
+    }
+    const colH={};
+    for(const id of q){const k=col[id];colH[k]=(colH[k]||0)+(layout[id]?.h||110)+40}
+    const maxH=Math.max(...Object.values(colH)),colY={};
+    for(const id of q){
+      const k=col[id];
+      if(colY[k]==null)colY[k]=baseY+(maxH-colH[k])/2;
+      pos[id]={x:k*300,y:Math.round(colY[k])};
+      colY[k]+=(layout[id]?.h||110)+40;
+    }
+    baseY+=maxH+60;
+  }
+  P.nodes.forEach(n=>{n.x=pos[n.id].x;n.y=pos[n.id].y});
+}
+
+/* ================= 选择 / 渲染 ================= */
+function select(id,focus){
+  sel=id||null;renderGraph();renderEditor();renderLeft();
+  if(focus){const t=$('#fTitle');if(t){t.focus();t.select()}}
+}
+function renderAll(){
+  $('#projTitle').value=P.title;
+  renderFilters();renderGraph();renderEditor();renderLeft();
+}
+function renderFilters(){
+  if(ui.chapter!=='all'&&ui.chapter!==''&&!P.chapters.some(c=>c.id===ui.chapter))ui.chapter='all';
+  $('#fChap').innerHTML=`<option value="all">全部章节</option>`+P.chapters.map(c=>`<option value="${esc(c.id)}">${esc(c.name||'（未命名章节）')}</option>`).join('')+`<option value="">未分章</option>`;
+  $('#fChap').value=ui.chapter;$('#fType').value=ui.type;
+}
+
+/* ---------- 右侧：节点编辑 ---------- */
+const right=$('#right');
+function stats(){
+  const words=P.nodes.reduce((s,n)=>s+n.text.replace(/\s/g,'').length,0);
+  return{nodes:P.nodes.length,choices:P.nodes.reduce((s,n)=>s+n.choices.length,0),endings:P.nodes.filter(n=>n.type==='ending').length,words};
+}
+function renderEditor(){
+  const n=N(sel);
+  if(!n){
+    const s=stats();
+    right.innerHTML=`<h3>${esc(P.title)}</h3>
+      <div class="stat"><div><b>${s.nodes}</b>节点</div><div><b>${s.choices}</b>选项</div><div><b>${s.endings}</b>结局</div><div><b>${s.words}</b>字</div></div>
+      <h4>怎么用</h4>
+      <ul class="tips">
+        <li><b>双击</b>画布空白处新建节点；点击节点在这里编辑。</li>
+        <li>拖动选项右边的<b>圆点</b>到另一个节点即可连线；拖到空白处会自动新建节点并连上。</li>
+        <li>拖动“＋ 拖动圆点新增选项”那一行的圆点，可以直接新增一个选项。</li>
+        <li>正文里写 <code>林夏：你好</code> 会显示成对话，写 <code>{好感}</code> 会显示变量的当前值。</li>
+        <li>选项条件示例：<code>好感 >= 3 && 有钥匙</code>，效果示例：<code>好感 += 1; 有钥匙 = true</code>。</li>
+        <li>左侧“检查”能找出死路、断线、到不了的结局，还能按条件模拟所有路线。</li>
+        <li>滚轮缩放，拖动空白处平移；Delete 删除选中节点，Ctrl+Z 撤销。</li>
+        <li>内容自动保存在<b>这个浏览器</b>里。换电脑、换浏览器或清理缓存前，请用“文件 → 导出 JSON”备份。</li>
+      </ul>`;
+    return;
+  }
+  const nodeOpts=cur=>`<option value="">（未连接）</option>`+P.nodes.map(x=>`<option value="${esc(x.id)}"${x.id===cur?' selected':''}>${esc((x.title||'（无标题）')+(x.type==='ending'?' 〔结局〕':x.type==='side'?' 〔支线〕':''))}</option>`).join('');
+  const inc=incoming(n.id);
+  right.innerHTML=`
+    <div class="ehead"><span class="dot t-${n.type}"></span><b>编辑节点</b><span class="grow"></span><button data-act="play">▶ 从这里试玩</button></div>
+    <label class="f">标题</label>
+    <input id="fTitle" data-f="title" value="${esc(n.title)}" placeholder="例如：雨夜敲门">
+    <div class="row2">
+      <div><label class="f">类型</label><select data-f="type">${Object.keys(TYPE_NAME).map(t=>`<option value="${t}"${n.type===t?' selected':''}>${TYPE_NAME[t]}</option>`).join('')}</select></div>
+      <div><label class="f">章节</label><select data-f="chapter"><option value="">未分章</option>${P.chapters.map(c=>`<option value="${esc(c.id)}"${n.chapter===c.id?' selected':''}>${esc(c.name||'（未命名章节）')}</option>`).join('')}</select></div>
+    </div>
+    ${n.type==='ending'?`<label class="f">结局名称 / 分类</label><input data-f="ending" value="${esc(n.ending)}" placeholder="例如：好结局、真结局、BE1">`:''}
+    <label class="check"><input type="checkbox" data-f="start"${P.start===n.id?' checked':''}> 设为开始节点（试玩从这里开始）</label>
+    <label class="f">正文 · <span>“角色名：台词”显示为对话，{变量名} 插入数值</span></label>
+    <textarea data-f="text" rows="10" placeholder="旁白直接写。&#10;林夏：对话这样写。">${esc(n.text)}</textarea>
+    <label class="f">进入这个节点时的效果（可不填）</label>
+    <div class="row"><input class="code" data-f="onEnter" data-kind="eff" value="${esc(n.onEnter)}" placeholder="如：见过林夏 = true"></div><div class="emsg"></div>
+    <div class="sec"><b>选项（${n.choices.length}）</b><button data-act="addChoice">＋ 添加选项</button></div>
+    ${n.choices.length?'':`<div class="small">${n.type==='ending'?'结局节点可以没有选项。':'还没有选项。没有选项又不是结局的节点会被当作“死路”。'}</div>`}
+    ${n.choices.map((c,i)=>`<div class="choice" data-ci="${i}">
+      <div class="row"><span class="num">${i+1}</span><input data-cf="text" value="${esc(c.text)}" placeholder="玩家看到的选项文字"><button class="ico" data-act="up" title="上移">↑</button><button class="ico" data-act="down" title="下移">↓</button><button class="ico danger" data-act="delChoice" title="删除选项">✕</button></div>
+      <div class="row"><span class="lbl">跳到</span><select data-cf="target">${nodeOpts(c.target)}</select><button class="ico" data-act="goto" title="打开目标节点">→</button><button class="ico" data-act="newTarget" title="新建一个节点作为目标">＋</button></div>
+      <div class="row"><span class="lbl">条件</span><input class="code" data-cf="cond" data-kind="cond" value="${esc(c.cond)}" placeholder="留空 = 总是出现，如：好感 >= 3"></div><div class="emsg"></div>
+      <div class="row"><span class="lbl">效果</span><input class="code" data-cf="effect" data-kind="eff" value="${esc(c.effect)}" placeholder="选择后执行，如：好感 += 1"></div><div class="emsg"></div>
+    </div>`).join('')}
+    <label class="f">备注（只给自己看，不会出现在试玩里）</label>
+    <textarea data-f="notes" rows="3" placeholder="伏笔、待办、灵感……">${esc(n.notes)}</textarea>
+    <h4>从哪些选项过来（${inc.length}）</h4>
+    <div class="small">${inc.length?inc.map(x=>`<div><span class="link" data-go="${esc(x.n.id)}">${esc(x.n.title||'（无标题）')}</span> · 「${esc(x.c.text||'未填写')}」</div>`).join(''):(P.start===n.id?'这是开始节点。':'没有任何选项指向这里。')}</div>
+    <div class="row" style="margin-top:16px"><button data-act="dup">复制节点</button><button class="danger" data-act="del">删除节点</button></div>`;
+  right.querySelectorAll('[data-kind]').forEach(validateInput);
+}
+function validateInput(t){
+  const msg=codeProblem(t.value,t.dataset.kind);
+  t.classList.toggle('bad',!!msg);
+  const m=t.closest('.row')?.nextElementSibling;
+  if(m&&m.classList.contains('emsg'))m.textContent=msg;
+}
+right.addEventListener('input',e=>{
+  const n=N(sel),t=e.target;if(!n)return;
+  if(t.dataset.f){
+    const f=t.dataset.f;
+    if(f==='start'){if(t.checked)P.start=n.id;else if(P.start===n.id)P.start=''}
+    else n[f]=t.value;
+    renderGraph();
+    if(f==='type'||f==='start')renderEditor();
+    if(f==='title'||f==='type'||f==='chapter'||f==='start')renderLeft();
+  }else if(t.dataset.cf){
+    const c=n.choices[+t.closest('.choice').dataset.ci];
+    c[t.dataset.cf]=t.value;
+    renderGraph();
+  }
+  if(t.dataset.kind)validateInput(t);
+  scheduleCommit();
+});
+right.addEventListener('click',e=>{
+  const go=e.target.closest('[data-go]');
+  if(go){select(go.dataset.go);centerOn(go.dataset.go);return}
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const n=N(sel);if(!n)return;
+  const box=b.closest('.choice'),ci=box?+box.dataset.ci:-1;
+  switch(b.dataset.act){
+    case 'play':startPlay(n.id);return;
+    case 'addChoice':
+      n.choices.push(newChoice(''));renderGraph();renderEditor();
+      right.querySelector(`.choice[data-ci="${n.choices.length-1}"] input`)?.focus();break;
+    case 'up':case 'down':{
+      const j=b.dataset.act==='up'?ci-1:ci+1;if(j<0||j>=n.choices.length)return;
+      [n.choices[ci],n.choices[j]]=[n.choices[j],n.choices[ci]];renderGraph();renderEditor();break;
+    }
+    case 'delChoice':n.choices.splice(ci,1);renderGraph();renderEditor();break;
+    case 'goto':{const t=n.choices[ci].target;if(N(t)){select(t);centerOn(t)}return}
+    case 'newTarget':{
+      const L=layout[n.id]||{w:220};
+      const t=makeNode(n.x+L.w+80,n.y+ci*60,{type:n.type==='ending'?'main':n.type,chapter:n.chapter,title:n.choices[ci].text||''});
+      n.choices[ci].target=t.id;renderAll();break;
+    }
+    case 'dup':{
+      const c=JSON.parse(JSON.stringify(n));
+      c.id=uid('n');c.title=(c.title||'无标题')+' 副本';c.x+=40;c.y+=40;c.choices.forEach(x=>x.id=uid('c'));
+      P.nodes.push(c);select(c.id);break;
+    }
+    case 'del':deleteNode(n.id);return;
+  }
+  commit();
+});
+function deleteNode(id){
+  const n=N(id);if(!n)return;
+  if((n.text.trim()||n.choices.length)&&!confirm(`删除节点“${n.title||'无标题'}”？\n（删错了可以按 Ctrl+Z 撤销）`))return;
+  P.nodes=P.nodes.filter(x=>x!==n);
+  P.nodes.forEach(x=>x.choices.forEach(c=>{if(c.target===id)c.target=''}));
+  if(P.start===id)P.start='';
+  sel=null;renderAll();commit();
+}
+
+/* ---------- 左侧面板 ---------- */
+const pane=$('#leftPane');
+function renderLeft(){
+  const chk=runChecks();
+  const errs=chk.iss.filter(x=>x.lv==='err').length;
+  document.querySelectorAll('#leftTabs button').forEach(b=>{
+    b.classList.toggle('on',b.dataset.tab===ui.tab);
+    if(b.dataset.tab==='check')b.textContent=chk.iss.length?`检查(${chk.iss.length})`:'检查';
+    if(b.dataset.tab==='check')b.style.color=errs&&ui.tab!=='check'?'var(--danger)':'';
+  });
+  $('#searchBox').classList.toggle('hidden',ui.tab!=='toc');
+  if(ui.tab==='toc')pane.innerHTML=tocHTML();
+  else if(ui.tab==='vars')pane.innerHTML=varsHTML();
+  else if(ui.tab==='chars')pane.innerHTML=charsHTML();
+  else if(ui.tab==='chaps')pane.innerHTML=chapsHTML();
+  else pane.innerHTML=checkHTML(chk);
+  pane.querySelectorAll('[data-vf="name"]').forEach(validateVarName);
+}
+function tocHTML(){
+  const q=ui.search.trim().toLowerCase();
+  const hit=n=>!q||(n.title+'\n'+n.text+'\n'+n.notes+'\n'+n.choices.map(c=>c.text).join('\n')).toLowerCase().includes(q);
+  const groups=[...P.chapters,{id:'',name:'未分章'}];
+  const html=groups.map(g=>{
+    const ns=P.nodes.filter(n=>n.chapter===g.id&&hit(n));
+    if(!ns.length)return '';
+    return `<div class="grp">${esc(g.name||'（未命名章节）')} · ${ns.length}</div>`+ns.map(n=>`<div class="item${n.id===sel?' on':''}" data-go="${esc(n.id)}"><span class="dot t-${n.type}"></span><span class="nt">${esc(n.title||'（无标题）')}</span>${n.type==='ending'?`<span class="small">${esc(n.ending||'结局')}</span>`:''}${P.start===n.id?'<span class="star">★</span>':''}</div>`).join('');
+  }).join('');
+  return html||`<div class="small" style="margin-top:10px">${q?'没有匹配的节点':'还没有节点，双击画布新建一个吧。'}</div>`;
+}
+function usage(name){
+  if(!name)return 0;
+  let k=0;
+  const has=s=>s&&(compileCond(s).ids.includes(name)||compileEffect(s).ids.includes(name));
+  for(const n of P.nodes){if(has(n.onEnter))k++;for(const c of n.choices){if(has(c.cond)||has(c.effect))k++}}
+  return k;
+}
+function varsHTML(){
+  return `<div class="small" style="margin:4px 0 10px">变量用来记录好感度、道具、剧情开关等。在选项的“条件”“效果”里按名字使用，正文里用 {名字} 显示数值。</div>`+
+    P.variables.map((v,i)=>`<div class="choice" data-vi="${i}">
+      <div class="row"><input data-vf="name" value="${esc(v.name)}" data-old="${esc(v.name)}" placeholder="变量名，如：好感"><button class="ico danger" data-vact="del" title="删除">✕</button></div>
+      <div class="emsg" style="margin-left:0"></div>
+      <div class="row"><select data-vf="type" style="width:90px;flex:none"><option value="number"${v.type==='number'?' selected':''}>数字</option><option value="bool"${v.type==='bool'?' selected':''}>开关</option><option value="text"${v.type==='text'?' selected':''}>文字</option></select>
+      <span class="lbl" style="width:auto">初始</span>${v.type==='bool'?`<select data-vf="init"><option value="false"${!v.init?' selected':''}>否</option><option value="true"${v.init?' selected':''}>是</option></select>`:`<input data-vf="init" value="${esc(v.init)}"${v.type==='number'?' type="number"':''}>`}</div>
+      <div class="small" style="margin-bottom:4px">被引用 ${usage(v.name)} 处</div></div>`).join('')+
+    `<button data-vact="add">＋ 添加变量</button>`;
+}
+function validateVarName(t){
+  const v=t.value.trim();let msg='';
+  if(!v)msg='请填写变量名';
+  else if(!VAR_RE.test(v)||RESERVED.has(v))msg='只能用中文、字母、数字和下划线，且不能以数字开头';
+  else if(P.variables.filter(x=>x.name===v).length>1)msg='变量名重复';
+  t.classList.toggle('bad',!!msg);
+  const m=t.closest('.row').nextElementSibling;if(m)m.textContent=msg;
+}
+function charsHTML(){
+  return `<div class="small" style="margin:4px 0 10px">正文里以“名字：”开头的行会显示为对话，名字用这里的颜色。不在表里的名字也能用，只是用默认颜色。</div>`+
+    P.characters.map((c,i)=>`<div class="row" data-ri="${i}"><input type="color" data-rf="color" value="${esc(c.color.length===4?'#'+[...c.color.slice(1)].map(x=>x+x).join(''):c.color.slice(0,7))}"><input data-rf="name" value="${esc(c.name)}" placeholder="角色名"><button class="ico danger" data-ract="del">✕</button></div>`).join('')+
+    `<button data-ract="add">＋ 添加角色</button>`;
+}
+function chapsHTML(){
+  return `<div class="small" style="margin:4px 0 10px">在节点编辑里给节点选章节。顶部可以按章节筛选，导出文本时也按章节排列。</div>`+
+    P.chapters.map((c,i)=>`<div class="row" data-hi="${i}"><input data-hf="name" value="${esc(c.name)}" placeholder="章节名"><span class="small" style="flex:none">${P.nodes.filter(n=>n.chapter===c.id).length}个</span><button class="ico" data-hact="up">↑</button><button class="ico" data-hact="down">↓</button><button class="ico danger" data-hact="del">✕</button></div>`).join('')+
+    `<button data-hact="add">＋ 添加章节</button>`;
+}
+function runChecks(){
+  const iss=[],add=(lv,id,msg)=>iss.push({lv,id,msg});
+  if(!N(P.start))add('err',null,'还没有设置开始节点（在节点编辑里勾选“设为开始节点”）');
+  const names=P.variables.map(v=>v.name);
+  names.forEach((x,i)=>{if(x&&names.indexOf(x)!==i)add('err',null,'变量名重复：'+x)});
+  for(const n of P.nodes){
+    if(!n.title.trim())add('warn',n.id,'没有标题');
+    if(n.type!=='ending'&&!n.choices.length)add('err',n.id,'死路：没有选项，也没有标记为结局');
+    let m=codeProblem(n.onEnter,'eff');if(m)add('err',n.id,'进入效果：'+m);
+    n.choices.forEach((c,i)=>{
+      const L=`选项${i+1}`;
+      if(!c.text.trim())add('warn',n.id,L+'没有填写文字');
+      if(!c.target)add('warn',n.id,L+'「'+(c.text||'…')+'」还没有连到任何节点');
+      else if(!N(c.target))add('err',n.id,L+'指向的节点已被删除');
+      if((m=codeProblem(c.cond,'cond')))add('err',n.id,L+'的条件：'+m);
+      if((m=codeProblem(c.effect,'eff')))add('err',n.id,L+'的效果：'+m);
+    });
+    if(n.choices.length&&n.choices.every(c=>c.cond.trim()))add('warn',n.id,'所有选项都带条件，玩家可能会卡在这里没得选');
+  }
+  const reach=new Set();
+  if(N(P.start)){const q=[P.start];reach.add(P.start);for(let h=0;h<q.length;h++)for(const c of N(q[h]).choices)if(N(c.target)&&!reach.has(c.target)){reach.add(c.target);q.push(c.target)}}
+  if(N(P.start))for(const n of P.nodes)if(!reach.has(n.id))add('warn',n.id,'从开始节点走不到这里');
+  iss.sort((a,b)=>(a.lv==='err'?0:1)-(b.lv==='err'?0:1));
+  return{iss,reach};
+}
+function checkHTML(chk){
+  const s=stats(),endings=P.nodes.filter(n=>n.type==='ending'),sim=ui.sim;
+  const title=id=>esc(N(id)?.title||'（无标题）');
+  let h=`<div class="stat"><div><b>${s.nodes}</b>节点</div><div><b>${s.choices}</b>选项</div><div><b>${s.endings}</b>结局</div><div><b>${s.words}</b>字</div></div>`;
+  h+=`<h4>结局一览（${endings.length}）</h4>`;
+  if(!endings.length)h+=`<div class="small">还没有结局节点。把节点类型设为“结局”即可。</div>`;
+  for(const e of endings){
+    const ok=chk.reach.has(e.id);
+    h+=`<div class="item" data-go="${esc(e.id)}"><span class="dot t-ending"></span><span class="nt">${esc(e.title||'（无标题）')} <span class="small">${esc(e.ending)}</span></span>`;
+    if(sim)h+=sim.endings[e.id]?'<span class="ok" title="按条件模拟可以达成">✓</span>':'<span class="no" title="按条件模拟无法达成">✗</span>';
+    else h+=ok?'':'<span class="no" title="连线上就走不到">✗</span>';
+    h+='</div>';
+    if(sim&&sim.endings[e.id]){
+      const p=sim.endings[e.id];
+      h+=`<div class="path">最短路线：${p.map((st,i)=>(i?` →「<em>${esc(st.choice||'')}</em>」→ `:'')+title(st.id)).join('')}</div>`;
+    }
+  }
+  h+=`<div style="margin:10px 0"><button data-cact="sim" title="从开始节点出发，按每个选项的条件和效果，走遍所有可能的路线">按条件模拟所有路线</button></div>`;
+  if(sim){
+    if(sim.err)h+=`<div class="no small">${esc(sim.err)}</div>`;
+    else{
+      h+=`<div class="small">共走过 ${sim.states} 种不同的“位置＋变量”组合${sim.truncated?'（路线太多，只模拟了一部分）':''}。</div>`;
+      const never=P.nodes.filter(n=>chk.reach.has(n.id)&&!sim.visited.has(n.id));
+      if(never.length)h+=`<div class="small" style="margin-top:6px">连线上能到，但<b>按条件永远到不了</b>的节点：</div>`+never.map(n=>`<div class="item" data-go="${esc(n.id)}"><span class="dot t-${n.type}"></span><span class="nt">${esc(n.title||'（无标题）')}</span></div>`).join('');
+      for(const m of sim.errs)h+=`<div class="no small">${esc(m)}</div>`;
+    }
+  }
+  h+=`<h4>问题（${chk.iss.length}）</h4>`;
+  if(!chk.iss.length)h+=`<div class="small ok">没有发现问题 👍</div>`;
+  h+=chk.iss.map(x=>`<div class="iss ${x.lv}"${x.id?` data-go="${esc(x.id)}"`:''}>${x.id?`<b>${title(x.id)}</b>：`:''}${esc(x.msg)}</div>`).join('');
+  return h;
+}
+function simulate(){
+  const st=N(P.start);if(!st)return{err:'没有设置开始节点'};
+  const LIMIT=50000,errs=new Set(),init=initVars();
+  try{applyEffect(st.onEnter,init)}catch(e){errs.add(`「${st.title}」进入效果出错：${e.message}`)}
+  const states=[{id:st.id,vars:init,prev:-1,choice:null}],seen=new Set([st.id+'|'+JSON.stringify(init)]),visited=new Set([st.id]),found={};
+  let truncated=false;
+  for(let h=0;h<states.length;h++){
+    if(states.length>LIMIT){truncated=true;break}
+    const s=states[h],n=N(s.id);
+    if(n.type==='ending'&&!(n.id in found))found[n.id]=h;
+    for(const c of n.choices){
+      const t=N(c.target);if(!t)continue;
+      let ok;try{ok=evalCond(c.cond,s.vars)}catch(e){errs.add(`「${n.title}」选项「${c.text}」条件出错：${e.message}`);continue}
+      if(!ok)continue;
+      const v={...s.vars};
+      try{applyEffect(c.effect,v);applyEffect(t.onEnter,v)}catch(e){errs.add(`「${n.title}」→「${t.title}」效果出错：${e.message}`);continue}
+      const key=t.id+'|'+JSON.stringify(v);if(seen.has(key))continue;
+      seen.add(key);visited.add(t.id);states.push({id:t.id,vars:v,prev:h,choice:c.text});
+    }
+  }
+  const pathOf=h=>{const out=[];while(h>=0){out.unshift(states[h]);h=states[h].prev}return out};
+  const endings={};for(const id in found)endings[id]=pathOf(found[id]);
+  return{endings,visited,states:states.length,truncated,errs:[...errs]};
+}
+function renameVar(oldN,newN){
+  const re=new RegExp('(?<![\\p{L}\\p{N}_])'+oldN.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![\\p{L}\\p{N}_])','gu');
+  for(const n of P.nodes){
+    n.onEnter=n.onEnter.replace(re,newN);
+    n.text=n.text.replace(/\{([^{}\n]+)\}/g,(m,x)=>'{'+x.replace(re,newN)+'}');
+    for(const c of n.choices){c.cond=c.cond.replace(re,newN);c.effect=c.effect.replace(re,newN)}
+  }
+}
+$('#leftTabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){ui.tab=b.dataset.tab;renderLeft()}});
+$('#search').addEventListener('input',e=>{ui.search=e.target.value;renderLeft()});
+pane.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.vf){
+    const v=P.variables[+t.closest('[data-vi]').dataset.vi];
+    if(t.dataset.vf==='name'){v.name=t.value.trim();pane.querySelectorAll('[data-vf="name"]').forEach(validateVarName)}
+    else if(t.dataset.vf==='type'){v.type=t.value;v.init=coerce(v.type,v.init);renderLeft()}
+    else v.init=coerce(v.type,t.value);
+    if(sel)right.querySelectorAll('[data-kind]').forEach(validateInput);
+  }else if(t.dataset.rf){P.characters[+t.closest('[data-ri]').dataset.ri][t.dataset.rf]=t.value}
+  else if(t.dataset.hf){P.chapters[+t.closest('[data-hi]').dataset.hi].name=t.value;renderFilters();renderGraph()}
+  scheduleCommit();
+});
+pane.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.vf==='name'){
+    const o=t.dataset.old,n=t.value.trim();
+    if(o&&n&&o!==n&&VAR_RE.test(n)&&usage(o)&&confirm(`把剧本里所有的“${o}”都改成“${n}”吗？`)){renameVar(o,n);renderGraph()}
+    t.dataset.old=n;commit();renderLeft();if(sel)renderEditor();
+  }
+});
+pane.addEventListener('click',e=>{
+  const go=e.target.closest('[data-go]');
+  if(go){select(go.dataset.go);centerOn(go.dataset.go);return}
+  const b=e.target.closest('[data-vact],[data-ract],[data-hact],[data-cact]');if(!b)return;
+  if(b.dataset.vact==='add'){P.variables.push({id:uid('v'),name:'',type:'number',init:0});renderLeft();pane.querySelector('.choice:last-of-type [data-vf="name"]')?.focus()}
+  else if(b.dataset.vact==='del'){
+    const v=P.variables[+b.closest('[data-vi]').dataset.vi];
+    if(usage(v.name)&&!confirm(`变量“${v.name}”还被引用了 ${usage(v.name)} 处，确定删除？`))return;
+    P.variables.splice(P.variables.indexOf(v),1);renderLeft();if(sel)renderEditor();
+  }
+  else if(b.dataset.ract==='add'){P.characters.push({id:uid('r'),name:'',color:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0')});renderLeft();pane.querySelector('.row:last-of-type [data-rf="name"]')?.focus()}
+  else if(b.dataset.ract==='del'){P.characters.splice(+b.closest('[data-ri]').dataset.ri,1);renderLeft()}
+  else if(b.dataset.hact){
+    const i=b.closest('[data-hi]')?+b.closest('[data-hi]').dataset.hi:-1;
+    if(b.dataset.hact==='add'){P.chapters.push({id:uid('h'),name:'第'+(P.chapters.length+1)+'章'})}
+    else if(b.dataset.hact==='del'){const c=P.chapters[i];P.nodes.forEach(n=>{if(n.chapter===c.id)n.chapter=''});P.chapters.splice(i,1)}
+    else{const j=b.dataset.hact==='up'?i-1:i+1;if(j<0||j>=P.chapters.length)return;[P.chapters[i],P.chapters[j]]=[P.chapters[j],P.chapters[i]]}
+    renderAll();
+  }
+  else if(b.dataset.cact==='sim'){commit();ui.sim=simulate();renderLeft();return}
+  commit();
+});
+
+/* ================= 试玩 ================= */
+let play=null;
+function startPlay(fromId){
+  const id=fromId||P.start;
+  if(!N(id)){alert('还没有设置开始节点。先选一个节点，勾选“设为开始节点”。');return}
+  if(commitT)commit();
+  play={from:id,vars:initVars(),cur:null,hist:[],picked:null,errs:[]};
+  enter(id,null);
+  $('#play').classList.remove('hidden');renderPlay();
+}
+function enter(id,picked,errs){
+  play.cur=id;play.picked=picked;play.errs=errs||[];
+  try{applyEffect(N(id).onEnter,play.vars)}catch(e){play.errs.push('进入效果出错：'+e.message)}
+}
+function choose(i){
+  const n=N(play.cur),c=n.choices[i];
+  if(!N(c.target))return;
+  play.hist.push({cur:play.cur,vars:{...play.vars},picked:play.picked});
+  const errs=[];
+  try{applyEffect(c.effect,play.vars)}catch(e){errs.push('选项效果出错：'+e.message)}
+  enter(c.target,c.text,errs);renderPlay();
+}
+function playBack(){const h=play.hist.pop();if(!h)return;play.cur=h.cur;play.vars=h.vars;play.picked=h.picked;play.errs=[];renderPlay()}
+function storyHTML(text,vars){
+  const cm=new Map(P.characters.map(c=>[c.name,c.color]));
+  return interp(text,vars).split('\n').map(line=>{
+    if(!line.trim())return '<div class="gap"></div>';
+    const m=line.match(/^\s*([\p{L}\p{N}_·・]{1,12})\s*[:：]\s*(.*)$/u);
+    if(m)return `<div class="say"><b style="color:${esc(cm.get(m[1])||'var(--accent)')}">${esc(m[1])}</b>${esc(m[2])}</div>`;
+    return `<p class="narr">${esc(line)}</p>`;
+  }).join('');
+}
+let playKeys=[];
+function renderPlay(){renderPlayStory();renderPlaySide()}
+function renderPlayStory(){
+  const n=N(play.cur),showLocked=$('#pLocked').checked;
+  let h=play.picked!=null?`<div class="picked">你选择了：${esc(play.picked||'（空选项）')}</div>`:'';
+  h+=`<div class="pnode"><span class="dot t-${n.type}" style="display:inline-block"></span> ${esc(n.title||'（无标题）')}${n.chapter?' · '+esc(chapterName(n.chapter)):''}</div>`;
+  h+=storyHTML(n.text,play.vars)||'<p class="small">（这个节点还没有正文）</p>';
+  h+=play.errs.map(x=>`<div class="perr">⚠ ${esc(x)}</div>`).join('');
+  if(n.type==='ending')h+=`<div class="endbanner">达成结局：${esc(n.ending?n.ending+' · ':'')}${esc(n.title)}</div>`;
+  playKeys=[];let k=0,btns='';
+  n.choices.forEach((c,i)=>{
+    let ok,err='';
+    try{ok=evalCond(c.cond,play.vars)}catch(e){ok=false;err=e.message}
+    const linked=!!N(c.target);
+    if(!ok&&!showLocked&&!err)return;
+    const can=ok&&linked;
+    if(can)playKeys.push(i);
+    const why=err?'条件出错：'+err:!ok?'不满足：'+c.cond:!linked?'（还没连到节点）':'';
+    btns+=`<button data-pc="${i}"${can?'':' disabled'}>${can?(++k)+'. ':''}${esc(c.text||'（空选项）')}${why?`<span class="why">${esc(why)}</span>`:''}</button>`;
+  });
+  if(btns)h+=`<div class="pchoices">${btns}</div>`;
+  if(!playKeys.length&&n.type!=='ending')h+=`<div class="pdead">这里没有可以选的选项，玩家会卡住。${n.choices.length?'（勾选右上角“显示不满足条件的选项”看看原因）':''}</div>`;
+  $('#pStory').innerHTML=h;$('#pStory').scrollTop=0;
+  $('#pBack').disabled=!play.hist.length;
+}
+function renderPlaySide(){
+  $('#pVars').innerHTML=P.variables.filter(v=>v.name).map(v=>{
+    const val=play.vars[v.name];
+    const inp=v.type==='bool'?`<input type="checkbox" data-pv="${esc(v.name)}"${val?' checked':''}>`:`<input data-pv="${esc(v.name)}" value="${esc(val)}"${v.type==='number'?' type="number"':''}>`;
+    return `<tr><td>${esc(v.name)}</td><td>${inp}</td></tr>`;
+  }).join('')||'<tr><td class="small">没有变量</td></tr>';
+  const steps=[...play.hist.map(h=>h.cur),play.cur];
+  $('#pPath').innerHTML=steps.map(id=>`<li><span class="link" data-pg="${esc(id)}">${esc(N(id)?.title||'（已删除）')}</span></li>`).join('');
+}
+$('#pStory').addEventListener('click',e=>{const b=e.target.closest('[data-pc]');if(b&&!b.disabled)choose(+b.dataset.pc)});
+$('#pVars').addEventListener('input',e=>{
+  const t=e.target,v=P.variables.find(x=>x.name===t.dataset.pv);if(!v)return;
+  play.vars[v.name]=v.type==='bool'?t.checked:coerce(v.type,t.value);renderPlayStory();
+});
+$('#pPath').addEventListener('click',e=>{const l=e.target.closest('[data-pg]');if(l&&N(l.dataset.pg)){closePlay();select(l.dataset.pg);centerOn(l.dataset.pg)}});
+$('#pRestart').onclick=()=>startPlay(play.from);
+$('#pBack').onclick=playBack;
+$('#pLocate').onclick=()=>{const id=play.cur;closePlay();select(id);centerOn(id)};
+$('#pLocked').onchange=renderPlayStory;
+$('#pClose').onclick=closePlay;
+$('#play').addEventListener('click',e=>{if(e.target.id==='play')closePlay()});
+function closePlay(){$('#play').classList.add('hidden')}
+
+/* ================= 文件 ================= */
+function download(name,text,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type}));
+  a.download=name.replace(/[\\/:*?"<>|]/g,'_');
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+}
+function stamp(){const d=new Date(),p=x=>String(x).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
+function exportJson(){if(commitT)commit();download(`${P.title}-${stamp()}.json`,JSON.stringify({format:'branch-script',version:1,...P},null,2),'application/json')}
+function exportMd(){
+  if(commitT)commit();
+  const T=id=>N(id)?.title||'（无标题）';
+  let s=`# ${P.title}\n\n`;
+  if(P.variables.length)s+=`## 变量\n\n`+P.variables.map(v=>`- **${v.name}**（${{number:'数字',bool:'开关',text:'文字'}[v.type]}，初始：${v.type==='bool'?(v.init?'是':'否'):v.init}）`).join('\n')+'\n\n';
+  if(P.characters.length)s+=`## 角色\n\n`+P.characters.map(c=>`- ${c.name}`).join('\n')+'\n\n';
+  const groups=[...P.chapters,{id:'',name:'未分章'}];
+  for(const g of groups){
+    const ns=P.nodes.filter(n=>n.chapter===g.id);if(!ns.length)continue;
+    if(P.chapters.length)s+=`## ${g.name||'（未命名章节）'}\n\n`;
+    if(g.id===''||true)ns.sort((a,b)=>(b.id===P.start)-(a.id===P.start));
+    for(const n of ns){
+      s+=`### ${T(n.id)}　〔${n.type==='ending'?(n.ending||'结局'):TYPE_NAME[n.type]}〕${P.start===n.id?'　★开始':''}\n\n`;
+      if(n.text.trim())s+=n.text.trim().split('\n').join('  \n')+'\n\n';
+      if(n.onEnter.trim())s+=`> 进入时：\`${n.onEnter}\`\n\n`;
+      for(const c of n.choices){
+        s+=`- 「${c.text||'（空选项）'}」 → **${c.target?T(c.target):'（未连接）'}**`;
+        if(c.cond.trim())s+=`　条件：\`${c.cond}\``;
+        if(c.effect.trim())s+=`　效果：\`${c.effect}\``;
+        s+='\n';
+      }
+      if(n.notes.trim())s+=`\n> 备注：${n.notes.trim().split('\n').join(' ')}\n`;
+      s+='\n';
+    }
+  }
+  download(`${P.title}-${stamp()}.md`,s,'text/markdown');
+}
+$('#fileIn').addEventListener('change',e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!d||!Array.isArray(d.nodes))throw new Error('文件里没有找到剧本数据');
+      const t=String(d.title||'未命名剧本'),same=projects.find(p=>p.imported&&p.title===t);
+      if(same&&confirm(`之前导入过“${t}”。\n点“确定”用这个文件更新那份导入的项目（适合看朋友发来的新版本，不会动你自己的项目）；\n点“取消”另存为一个新项目。`)){
+        if(same.id===curId){P=normalize(d);sel=null;ui.sim=null;resetHistory();renderAll();save(true)}
+        else{try{lsSet(PK(same.id),JSON.stringify(normalize(d)))}catch(e){}openProject(same.id)}
+      }else createProject(d,false,true);
+    }catch(err){alert('导入失败：'+err.message)}
+  };
+  r.readAsText(f);
+});
+$('#fileMenu').addEventListener('click',e=>{
+  const b=e.target.closest('[data-m]');if(!b)return;
+  $('#fileMenu').removeAttribute('open');
+  const m=b.dataset.m;
+  if(m==='exportJson')exportJson();
+  else if(m==='exportMd')exportMd();
+  else if(m==='importJson')$('#fileIn').click();
+});
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#fileMenu'))$('#fileMenu').removeAttribute('open');
+  if(!e.target.closest('#projMenu'))$('#projMenu').removeAttribute('open');
+});
+
+/* ================= 顶栏 / 快捷键 ================= */
+$('#projTitle').addEventListener('input',e=>{P.title=e.target.value;scheduleCommit()});
+$('#projTitle').addEventListener('change',()=>{if(commitT)commit();save(true);renderProjects()});
+$('#bAdd').onclick=()=>{const c=viewCenterWorld();const n=makeNode(c.x-110+Math.random()*40,c.y-40+Math.random()*40,{chapter:ui.chapter!=='all'?ui.chapter:''});select(n.id,true);commit()};
+$('#bLayout').onclick=()=>{if(!confirm('按分支顺序重新排列所有节点的位置？（可撤销）'))return;autoLayout();renderGraph();fit();commit()};
+$('#bFit').onclick=fit;
+$('#bUndo').onclick=undo;$('#bRedo').onclick=redo;
+$('#bPlay').onclick=()=>startPlay();
+$('#fType').onchange=e=>{ui.type=e.target.value;renderGraph()};
+$('#fChap').onchange=e=>{ui.chapter=e.target.value;renderGraph()};
+document.addEventListener('keydown',e=>{
+  const mod=e.ctrlKey||e.metaKey,k=e.key.toLowerCase();
+  if(!$('#play').classList.contains('hidden')){
+    if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)&&e.key!=='Escape')return;
+    if(e.key==='Escape')closePlay();
+    else if(e.key==='Backspace'){e.preventDefault();playBack()}
+    else if(/^[1-9]$/.test(e.key)&&playKeys[+e.key-1]!=null)choose(playKeys[+e.key-1]);
+    return;
+  }
+  if(mod&&k==='s'){e.preventDefault();if(commitT)commit();save(true);return}
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
+  if(mod&&k==='z'){e.preventDefault();e.shiftKey?redo():undo()}
+  else if(mod&&k==='y'){e.preventDefault();redo()}
+  else if((e.key==='Delete'||e.key==='Backspace')&&sel){e.preventDefault();deleteNode(sel)}
+  else if(e.key==='Escape'&&sel)select(null);
+});
+window.addEventListener('beforeunload',()=>{if(commitT)commit();save(true)});
+
+/* ================= 启动 ================= */
+load();
+</script>
+</body>
+</html>
